@@ -455,6 +455,16 @@ const collection = {
       'A demo/practice API test collection against Restful-Booker (https://restful-booker.herokuapp.com), a public API testing playground built by Mark Winteringham specifically for QA practice. This is not a paid client engagement. See README.md for full context, the documented public test credentials used, and the community-reported issue this collection deliberately does not paper over.',
     schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json',
   },
+  event: [
+    preRequestEvent([
+      "// Restful-Booker's free-tier Heroku router closes idle keep-alive sockets",
+      "// aggressively. Newman's HTTP client can throw an unhandled ECONNRESET",
+      '// when a pooled socket is reused after the server has already closed it,',
+      '// which crashes the whole run instead of failing one request. Disabling',
+      '// keep-alive avoids the reused-socket race entirely.',
+      "pm.request.headers.upsert({ key: 'Connection', value: 'close' });",
+    ]),
+  ],
   item: [
     healthCheckFolder,
     authFolder,
