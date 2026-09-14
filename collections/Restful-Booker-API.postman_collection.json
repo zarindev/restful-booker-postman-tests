@@ -1,6 +1,6 @@
 {
   "info": {
-    "_postman_id": "705887ec-d21e-44b3-91f8-598af2a6f749",
+    "_postman_id": "d1c1403d-4e12-4fcf-83ef-c9a5bfb3c4bd",
     "name": "Restful Booker API — QA Automation Collection",
     "description": "A demo/practice API test collection against Restful-Booker (https://restful-booker.herokuapp.com), a public API testing playground built by Mark Winteringham specifically for QA practice. This is not a paid client engagement. See README.md for full context, the documented public test credentials used, and the community-reported issue this collection deliberately does not paper over.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -212,13 +212,16 @@
                   "    const jsonData = pm.response.json();",
                   "    const requestBody = JSON.parse(pm.request.body.raw);",
                   "",
+                  "    // Save the chained values before asserting: a failed assertion below",
+                  "    // throws immediately, and downstream requests still need these set",
+                  "    // regardless of whether this particular test passes.",
+                  "    pm.environment.set('createdFirstName', jsonData.booking.firstname);",
+                  "    pm.environment.set('createdLastName', jsonData.booking.lastname);",
+                  "",
                   "    pm.expect(jsonData.booking.firstname).to.eql(requestBody.firstname);",
                   "    pm.expect(jsonData.booking.lastname).to.eql(requestBody.lastname);",
                   "    pm.expect(jsonData.booking.totalprice).to.eql(requestBody.totalprice);",
                   "    pm.expect(jsonData.booking.depositpaid).to.eql(requestBody.depositpaid);",
-                  "",
-                  "    pm.environment.set('createdFirstName', jsonData.booking.firstname);",
-                  "    pm.environment.set('createdLastName', jsonData.booking.lastname);",
                   "});"
                 ]
               }
@@ -245,7 +248,7 @@
             "description": "Creates a booking with dynamically generated data (unique name/price per run, computed dates) rather than a fixed fixture, and stores the returned bookingid plus the submitted name for every downstream request in this collection to chain against.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstname\": \"{{$randomFirstName}}\",\n  \"lastname\": \"{{$randomLastName}}\",\n  \"totalprice\": \"{{$randomInt}}\",\n  \"depositpaid\": true,\n  \"bookingdates\": {\n    \"checkin\": \"{{checkinDate}}\",\n    \"checkout\": \"{{checkoutDate}}\"\n  },\n  \"additionalneeds\": \"Breakfast\"\n}",
+              "raw": "{\n  \"firstname\": \"{{$randomFirstName}}\",\n  \"lastname\": \"{{$randomLastName}}\",\n  \"totalprice\": {{$randomInt}},\n  \"depositpaid\": true,\n  \"bookingdates\": {\n    \"checkin\": \"{{checkinDate}}\",\n    \"checkout\": \"{{checkoutDate}}\"\n  },\n  \"additionalneeds\": \"Breakfast\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

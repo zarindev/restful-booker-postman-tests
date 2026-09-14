@@ -34,10 +34,20 @@ function url(pathSegments, query = []) {
   };
 }
 
-function rawBody(obj) {
+function rawBody(obj, unquotedVarKeys = []) {
+  let raw = JSON.stringify(obj, null, 2);
+  // Postman substitutes {{...}} by text replacement in the raw body, not by
+  // re-serializing JSON. A quoted placeholder like "totalprice": "{{$randomInt}}"
+  // always resolves to a JSON string, even though $randomInt produces digits --
+  // the API then (correctly) returns totalprice as a number, and a naive
+  // equality check against the submitted string fails. Stripping the quotes
+  // for these keys keeps the resolved value as a real JSON number.
+  for (const key of unquotedVarKeys) {
+    raw = raw.replace(new RegExp(`("${key}":\\s*)"(\\{\\{[^}]+\\}\\})"`), '$1$2');
+  }
   return {
     mode: 'raw',
-    raw: JSON.stringify(obj, null, 2),
+    raw,
     options: { raw: { language: 'json' } },
   };
 }
@@ -153,17 +163,20 @@ const createBookingFolder = {
       method: 'POST',
       header: jsHeader(),
       path: ['booking'],
-      body: rawBody({
-        firstname: '{{$randomFirstName}}',
-        lastname: '{{$randomLastName}}',
-        totalprice: '{{$randomInt}}',
-        depositpaid: true,
-        bookingdates: {
-          checkin: '{{checkinDate}}',
-          checkout: '{{checkoutDate}}',
+      body: rawBody(
+        {
+          firstname: '{{$randomFirstName}}',
+          lastname: '{{$randomLastName}}',
+          totalprice: '{{$randomInt}}',
+          depositpaid: true,
+          bookingdates: {
+            checkin: '{{checkinDate}}',
+            checkout: '{{checkoutDate}}',
+          },
+          additionalneeds: 'Breakfast',
         },
-        additionalneeds: 'Breakfast',
-      }),
+        ['totalprice'],
+      ),
       description:
         'Creates a booking with dynamically generated data (unique name/price per run, computed dates) rather than a fixed fixture, and stores the returned bookingid plus the submitted name for every downstream request in this collection to chain against.',
       events: [
@@ -196,13 +209,16 @@ const createBookingFolder = {
           '    const jsonData = pm.response.json();',
           '    const requestBody = JSON.parse(pm.request.body.raw);',
           '',
+          '    // Save the chained values before asserting: a failed assertion below',
+          '    // throws immediately, and downstream requests still need these set',
+          "    // regardless of whether this particular test passes.",
+          "    pm.environment.set('createdFirstName', jsonData.booking.firstname);",
+          "    pm.environment.set('createdLastName', jsonData.booking.lastname);",
+          '',
           '    pm.expect(jsonData.booking.firstname).to.eql(requestBody.firstname);',
           '    pm.expect(jsonData.booking.lastname).to.eql(requestBody.lastname);',
           '    pm.expect(jsonData.booking.totalprice).to.eql(requestBody.totalprice);',
           '    pm.expect(jsonData.booking.depositpaid).to.eql(requestBody.depositpaid);',
-          '',
-          "    pm.environment.set('createdFirstName', jsonData.booking.firstname);",
-          "    pm.environment.set('createdLastName', jsonData.booking.lastname);",
           '});',
         ]),
       ],
