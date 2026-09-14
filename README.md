@@ -18,7 +18,9 @@ Not just "does each endpoint return 200." Every request in this collection eithe
 
 ## An honest note on one request in this collection
 
-Multiple independent QA practitioners who've tested this API report that **filtering bookings by checkout date returns inconsistent results** — a known community-reported quirk of this practice API. This collection includes a request for that filter, but it deliberately does **not** assert a specific pass/fail outcome on it, because that behavior hasn't been personally re-verified as part of building this collection. Instead, it logs the actual response for manual inspection. I'd rather ship an honest "investigate this" than a hardcoded assertion I can't stand behind.
+Multiple independent QA practitioners who've tested this API report that **filtering bookings by checkout date returns inconsistent results** — a known community-reported quirk of this practice API. This collection includes a request for that filter, but it deliberately does **not** assert a specific pass/fail outcome on it. Instead, it logs the actual response for manual inspection.
+
+This has now been personally checked against two real, independent CI runs: in both, the `GET /booking?checkout=<date>` response was within ~40 bytes of that same run's *unfiltered* `GET /booking` response (60.78kB vs 60.82kB in one run; 9.24kB vs 9.24kB in the other, with the total shrinking between runs simply because this is a shared public API other people are constantly writing to). That's strong evidence the `checkout` query parameter is being **silently ignored** by the API rather than actually filtering — it just returns the full booking list either way. That's a real, reproducible characteristic of this endpoint, not run-to-run noise, but it's also not something a single assertion can cleanly express against a dataset whose total size is out of this collection's control. The "logged, not asserted" approach stays as the right call here, now backed by evidence instead of just caution.
 
 ## Public test credentials
 
@@ -26,14 +28,14 @@ The `username`/`password` values in the environment file (`admin` / `password123
 
 ## A note on how this build was verified
 
-This repo was assembled and pushed from an AI coding agent running in a network-sandboxed environment that has no outbound access to `restful-booker.herokuapp.com` (confirmed: the sandbox's own egress policy rejects the connection outright). That means **the collection itself could not be run against the live API before this push** — no local `npm test` pass/fail signal exists for this commit.
+This repo was assembled by an AI coding agent running in a network-sandboxed environment with no outbound access to `restful-booker.herokuapp.com` (confirmed: the sandbox's own egress policy rejects the connection outright), so the collection couldn't be run against the live API from that sandbox. Verification instead happened through a handful of iterations on GitHub Actions, which runs on a normal GitHub-hosted runner with unrestricted internet access:
 
-What *was* verified in that sandbox, independent of network access:
+1. **`newman@6.2.2` crashed on Node.js 20+** before making a single request (`serialised-error` → `object-hash@1.3.1` throws `Unknown object type "asyncfunction"`). Fixed with an `overrides` pin (`object-hash: ^3.0.0`) in `package.json`.
+2. With that fixed, the `test:html` script (which only used the `htmlextra` reporter) exited non-zero with **zero console output**, because `htmlextra` alone doesn't stream per-request results — it looked like a silent crash but was actually just real assertion failures with no visibility into what failed. Added the `cli` reporter alongside it (`-r cli,htmlextra`) so failures are actually visible in CI logs.
+3. With real output visible, two genuine assertion failures showed up against the live API — both bugs in this collection, not the API: `totalprice` was submitted as a quoted `{{$randomInt}}` template variable, which Postman resolves to a JSON *string*, while the API correctly returns it as a *number*; and a downstream "booking matches" check compared against an environment variable that never got set, because the `totalprice` assertion above it threw before the script reached the line that set it. Fixed the body template to emit `totalprice` unquoted (so it resolves as a real number) and reordered the script to save chained variables before the assertions that can throw.
+4. After that fix, **[a CI run went fully green](../../actions/runs/34796217671): 15/15 requests, 15/15 test-scripts, 23/23 assertions passing** against the live API.
 
-- A real, reproducible bug: `newman@6.2.2`'s dependency chain (`serialised-error` → `object-hash@1.3.1`) throws `Unknown object type "asyncfunction"` and crashes immediately on Node.js 20+ before a single request runs. Fixed via an `overrides` pin in `package.json` (`object-hash: ^3.0.0`) so `npm install && npm test` actually gets as far as making requests, locally and in CI.
-- The `YOUR-USERNAME` placeholder and a mismatched repo name in the CI badge URL (both fixed to point at this actual repo).
-
-**The [GitHub Actions badge](../../actions/workflows/newman.yml) at the top of this README is the first genuine pass/fail signal for this collection** — it runs from a normal GitHub-hosted runner with unrestricted internet access, on every push and daily via the scheduled cron job. If it's red, that's real signal worth investigating (either a genuine assertion/API-shape mismatch, or the practice API itself being down — it's a free-tier Heroku app with its own independent uptime). Until it's gone green at least once, treat the "what this collection tests" claims above as the intended design, not a confirmed-passing result.
+**The [GitHub Actions badge](../../actions/workflows/newman.yml) at the top of this README reflects the real, current pass/fail state of this collection** — it re-runs on every push and daily via the scheduled cron job. A future red badge is real signal worth investigating (either a genuine regression, or the practice API itself being down — it's a free-tier Heroku app with its own independent uptime), not something to assume away.
 
 ## Project structure
 
