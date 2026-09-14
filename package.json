@@ -4,7 +4,7 @@
   "description": "Postman/Newman API test collection for the Restful-Booker practice API. Self-built demo portfolio project.",
   "scripts": {
     "test": "newman run collections/Restful-Booker-API.postman_collection.json -e environments/Restful-Booker.postman_environment.json",
-    "test:html": "newman run collections/Restful-Booker-API.postman_collection.json -e environments/Restful-Booker.postman_environment.json -r htmlextra --reporter-htmlextra-export newman-report.html",
+    "test:html": "newman run collections/Restful-Booker-API.postman_collection.json -e environments/Restful-Booker.postman_environment.json -r cli,htmlextra --reporter-htmlextra-export newman-report.html",
     "generate": "node generate-collection.js"
   },
   "keywords": [
