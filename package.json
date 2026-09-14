@@ -1,0 +1,26 @@
+{
+  "name": "restful-booker-postman-api-tests",
+  "version": "1.0.0",
+  "description": "Postman/Newman API test collection for the Restful-Booker practice API. Self-built demo portfolio project.",
+  "scripts": {
+    "test": "newman run collections/Restful-Booker-API.postman_collection.json -e environments/Restful-Booker.postman_environment.json",
+    "test:html": "newman run collections/Restful-Booker-API.postman_collection.json -e environments/Restful-Booker.postman_environment.json -r htmlextra --reporter-htmlextra-export newman-report.html",
+    "generate": "node generate-collection.js"
+  },
+  "keywords": [
+    "postman",
+    "newman",
+    "api-testing",
+    "qa-automation",
+    "restful-booker"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "newman": "^6.2.1",
+    "newman-reporter-htmlextra": "^1.23.1"
+  },
+  "overrides": {
+    "object-hash": "^3.0.0"
+  }
+}
